@@ -60,7 +60,26 @@ document.addEventListener('DOMContentLoaded', () => {
         client.onMessageArrived = msg => {
             const topic = msg.destinationName;
             const payload = msg.payloadString;
-            updateDashboard(topic, payload);
+
+            if (topic === ECG_TOPIC) {
+                try {
+                    const values = JSON.parse(payload); // kalau array
+                    if (Array.isArray(values)) {
+                        values.forEach(val => {
+                            const num = parseFloat(val);
+                            if (!isNaN(num)) updateDashboard(ECG_TOPIC, num);
+                        });
+                    } else {
+                        const val = parseFloat(payload);
+                        if (!isNaN(val)) updateDashboard(topic, val);
+                    }
+                } catch (e) {
+                    const val = parseFloat(payload);
+                    if (!isNaN(val)) updateDashboard(topic, val);
+                }
+            } else {
+                updateDashboard(topic, payload);
+            }
         };
 
         client.connect({
@@ -84,7 +103,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (topic === ECG_TOPIC && !isNaN(value)) {
             updateChartData(ecgChart, time, value);
-            
             const logEntry = {
                 time: time,
                 timestamp: timestamp.toISOString(),
