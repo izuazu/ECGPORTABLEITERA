@@ -33,14 +33,14 @@
                     <div class="chart-wrapper">
                         <canvas id="ecgChart"></canvas>
                     </div>
-                    <button id="downloadEcgChart"><i class="fa-solid fa-download"></i> Download/Share</button>
+                    <button class="action-btn" data-type="chart" data-target="ecgChart"><i class="fa-solid fa-download"></i> Download/Share</button>
                 </section>
                 <section class="card">
                     <h2>Grafik BPM (Historis)</h2>
                     <div class="chart-wrapper">
                         <canvas id="bpmChart"></canvas>
                     </div>
-                    <button id="downloadBpmChart"><i class="fa-solid fa-download"></i> Download/Share</button>
+                    <button class="action-btn" data-type="chart" data-target="bpmChart"><i class="fa-solid fa-download"></i> Download/Share</button>
                 </section>
             </div>
             <div class="data-grid">
@@ -51,8 +51,9 @@
                             <thead>
                                 <tr>
                                     <th>Waktu</th>
-                                    <th>Topik</th>
-                                    <th>Data</th>
+                                    <th>ECG</th>
+                                    <th>BPM</th>
+                                    <th>Status</th>
                                 </tr>
                             </thead>
                             <tbody id="data-log-table"></tbody>
@@ -62,9 +63,9 @@
                 <section class="card card-full-height">
                     <h2>Aksi & Download</h2>
                     <div class="button-group">
-                        <button id="downloadXlsx"><i class="fa-solid fa-file-excel"></i> Download/Share XLSX</button>
-                        <button id="downloadCsv"><i class="fa-solid fa-file-csv"></i> Download/Share CSV</button>
-                        <button id="downloadTxt"><i class="fa-solid fa-file-alt"></i> Download/Share TXT</button>
+                        <button class="action-btn" data-type="xlsx"><i class="fa-solid fa-file-excel"></i> Download/Share XLSX</button>
+                        <button class="action-btn" data-type="csv"><i class="fa-solid fa-file-csv"></i> Download/Share CSV</button>
+                        <button class="action-btn" data-type="txt"><i class="fa-solid fa-file-alt"></i> Download/Share TXT</button>
                         <hr style="border: none; border-top: 1px solid var(--border-color); margin: 12px 0;">
                         <button id="resetData" class="button-danger"><i class="fa-solid fa-trash-can"></i> Reset Data</button>
                     </div>
@@ -72,15 +73,37 @@
             </div>
         </main>
     </div>
+
     <div id="modal-reset" class="modal">
         <div class="modal-content">
             <p>Anda yakin ingin mereset semua data pada dashboard?</p>
             <div class="modal-buttons">
                 <button id="confirmReset">Ya</button>
-                <button id="cancelReset">Batal</button>
+                <button class="cancel-btn">Batal</button>
             </div>
         </div>
     </div>
+
+    <div id="modal-nodata" class="modal">
+        <div class="modal-content">
+            <p>Tidak ada data untuk diproses. Silakan tunggu data masuk.</p>
+            <div class="modal-buttons">
+                <button class="cancel-btn">Tutup</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-action" class="modal">
+        <div class="modal-content">
+            <p>Pilih Aksi</p>
+            <div class="modal-buttons">
+                <button id="confirm-download">Download</button>
+                <button id="confirm-share">Share</button>
+                <button class="cancel-btn">Batal</button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>

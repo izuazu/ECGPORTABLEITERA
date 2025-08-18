@@ -1,107 +1,270 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const MQTT_BROKER='e81af177c9af406794c5f43addea8b52.s1.eu.hivemq.cloud';
-    const MQTT_PORT=8884;
-    const MQTT_PATH='/mqtt';
-    const MQTT_USERNAME='ekgitera';
-    const MQTT_PASSWORD='Itera123';
-    const ECG_TOPIC='ekg/data';
-    const BPM_TOPIC='ekg/bpm';
-    const STATUS_TOPIC='ekg/status';
-    const connectionStatusEl=document.getElementById('connection-status');
-    const bpmValueEl=document.getElementById('bpm-value');
-    const statusValueEl=document.getElementById('status-value');
-    const statusCardEl=document.getElementById('status-card');
-    const dataLogTableBody=document.getElementById('data-log-table');
-    const MAX_CHART_POINTS=100;
-    const MAX_TABLE_ROWS=50;
-    let dataLog=[],ecgChart,bpmChart;
+    const MQTT_BROKER = 'e81af177c9af406794c5f43addea8b52.s1.eu.hivemq.cloud';
+    const MQTT_PORT = 8884;
+    const MQTT_PATH = '/mqtt';
+    const MQTT_USERNAME = 'ekgitera';
+    const MQTT_PASSWORD = 'Itera123';
+    const ECG_TOPIC = 'ekg/data';
+    const BPM_TOPIC = 'ekg/bpm';
+    const STATUS_TOPIC = 'ekg/status';
 
-    function initCharts(){
-        const ecgCtx=document.getElementById('ecgChart').getContext('2d');
-        ecgChart=new Chart(ecgCtx,{type:'line',data:{labels:[],datasets:[{label:'Sinyal EKG',data:[],borderColor:'rgb(75, 192, 192)',borderWidth:1.5,pointRadius:0,tension:0.1}]},options:{responsive:true,maintainAspectRatio:false,animation:false,scales:{x:{display:false},y:{min:-2,max:2,beginAtZero:false,ticks:{stepSize:0.5}}}}});
-        const bpmCtx=document.getElementById('bpmChart').getContext('2d');
-        bpmChart=new Chart(bpmCtx,{type:'line',data:{labels:[],datasets:[{label:'BPM',data:[],borderColor:'rgb(255, 99, 132)',backgroundColor:'rgba(255, 99, 132, 0.2)',borderWidth:2,fill:true}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{min:0,max:220}}}});
+    const connectionStatusEl = document.getElementById('connection-status');
+    const bpmValueEl = document.getElementById('bpm-value');
+    const statusValueEl = document.getElementById('status-value');
+    const statusCardEl = document.getElementById('status-card');
+    const dataLogTableBody = document.getElementById('data-log-table');
+    const modalReset = document.getElementById('modal-reset');
+    const modalNoData = document.getElementById('modal-nodata');
+    const modalAction = document.getElementById('modal-action');
+
+    const MAX_CHART_POINTS = 100;
+    const MAX_TABLE_ROWS = 50;
+
+    let processedLog = [], ecgChart, bpmChart;
+    let currentBpm = "", currentStatus = "";
+    let pendingAction = null;
+
+    function initCharts() {
+        const ecgCtx = document.getElementById('ecgChart').getContext('2d');
+        ecgChart = new Chart(ecgCtx, {
+            type: 'line',
+            data: { labels: [], datasets: [{ label: 'Sinyal EKG', data: [], borderColor: 'rgb(75, 192, 192)', borderWidth: 1.5, pointRadius: 0, tension: 0.1 }] },
+            options: { responsive: true, maintainAspectRatio: false, animation: false, scales: { x: { display: false }, y: { min: -2, max: 2, beginAtZero: false, ticks: { stepSize: 0.5 } } } }
+        });
+
+        const bpmCtx = document.getElementById('bpmChart').getContext('2d');
+        bpmChart = new Chart(bpmCtx, {
+            type: 'line',
+            data: { labels: [], datasets: [{ label: 'BPM', data: [], borderColor: 'rgb(255, 99, 132)', backgroundColor: 'rgba(255, 99, 132, 0.2)', borderWidth: 2, fill: true }] },
+            options: { responsive: true, maintainAspectRatio: false, scales: { y: { min: 0, max: 220 } } }
+        });
     }
 
-    function updateConnectionStatus(msg,isConnected){
-        connectionStatusEl.textContent=msg;
-        connectionStatusEl.style.color=isConnected?'var(--green-strong)':'var(--red-strong)';
+    function updateConnectionStatus(msg, isConnected) {
+        connectionStatusEl.textContent = msg;
+        connectionStatusEl.style.color = isConnected ? 'var(--green-strong)' : 'var(--red-strong)';
     }
 
-    function connectMqtt(){
-        const clientId='web-dashboard-'+Math.random().toString(16).substr(2,8);
-        updateConnectionStatus('Connecting...',false);
-        const client=new Paho.MQTT.Client(MQTT_BROKER,MQTT_PORT,MQTT_PATH,clientId);
-        client.onConnectionLost=res=>{
-            if(res.errorCode!==0){
-                updateConnectionStatus('Disconnected. Retrying...',false);
-                setTimeout(connectMqtt,5000);
+    function connectMqtt() {
+        const clientId = 'web-dashboard-' + Math.random().toString(16).substr(2, 8);
+        updateConnectionStatus('Connecting...', false);
+        const client = new Paho.MQTT.Client(MQTT_BROKER, MQTT_PORT, MQTT_PATH, clientId);
+
+        client.onConnectionLost = res => {
+            if (res.errorCode !== 0) {
+                updateConnectionStatus('Disconnected. Retrying...', false);
+                setTimeout(connectMqtt, 5000);
             }
         };
-        client.onMessageArrived=msg=>{
-            const topic=msg.destinationName;
-            const payload=msg.payloadString;
-            const timestamp=new Date();
-            const logEntry={time:timestamp.toLocaleTimeString('id-ID'),timestamp:timestamp.toISOString(),topic, payload};
-            dataLog.push(logEntry);
-            updateDashboard(logEntry);
+
+        client.onMessageArrived = msg => {
+            const topic = msg.destinationName;
+            const payload = msg.payloadString;
+            updateDashboard(topic, payload);
         };
-        client.connect({onSuccess:()=>{updateConnectionStatus('Connected',true);client.subscribe(ECG_TOPIC);client.subscribe(BPM_TOPIC);client.subscribe(STATUS_TOPIC);},onFailure:m=>updateConnectionStatus(`Connection Failed: ${m.errorMessage}`,false),userName:MQTT_USERNAME,password:MQTT_PASSWORD,useSSL:true});
+
+        client.connect({
+            onSuccess: () => {
+                updateConnectionStatus('Connected', true);
+                client.subscribe(ECG_TOPIC);
+                client.subscribe(BPM_TOPIC);
+                client.subscribe(STATUS_TOPIC);
+            },
+            onFailure: m => updateConnectionStatus(`Connection Failed: ${m.errorMessage}`, false),
+            userName: MQTT_USERNAME,
+            password: MQTT_PASSWORD,
+            useSSL: true
+        });
     }
 
-    function updateDashboard(logEntry){
-        const {topic,payload,time}=logEntry;
-        const value=parseFloat(payload);
-        if(topic===ECG_TOPIC&&!isNaN(value)) updateChartData(ecgChart,time,value);
-        else if(topic===BPM_TOPIC&&!isNaN(value)){bpmValueEl.textContent=Math.round(value);updateChartData(bpmChart,time,Math.round(value));}
-        else if(topic===STATUS_TOPIC){statusValueEl.textContent=payload;statusCardEl.classList.remove('status-normal','status-arrhythmia');statusCardEl.classList.add(payload.toLowerCase().includes('normal')?'status-normal':'status-arrhythmia');}
-        updateLogTable(logEntry);
-    }
+    function updateDashboard(topic, payload) {
+        const timestamp = new Date();
+        const time = timestamp.toLocaleTimeString('id-ID');
+        const value = parseFloat(payload);
 
-    function updateChartData(chart,label,data){
-        chart.data.labels.push(label);
-        chart.data.datasets[0].data.push(data);
-        if(chart.data.labels.length>MAX_CHART_POINTS){chart.data.labels.shift();chart.data.datasets[0].data.shift();}
-        chart.update('none');
-    }
+        if (topic === ECG_TOPIC && !isNaN(value)) {
+            updateChartData(ecgChart, time, value);
+            
+            const logEntry = {
+                time: time,
+                timestamp: timestamp.toISOString(),
+                ecg: value.toFixed(4),
+                bpm: currentBpm,
+                status: currentStatus
+            };
+            processedLog.push(logEntry);
+            updateLogTable(logEntry);
 
-    function updateLogTable({time,topic,payload}){
-        const newRow=dataLogTableBody.insertRow(0);
-        newRow.insertCell(0).textContent=time;
-        newRow.insertCell(1).textContent=topic;
-        newRow.insertCell(2).textContent=payload;
-        if(dataLogTableBody.rows.length>MAX_TABLE_ROWS)dataLogTableBody.deleteRow(MAX_TABLE_ROWS);
-    }
+        } else if (topic === STATUS_TOPIC) {
+            currentStatus = payload;
+            statusValueEl.textContent = payload;
+            statusCardEl.classList.remove('status-normal', 'status-arrhythmia');
+            statusCardEl.classList.add(payload.toLowerCase().includes('normal') ? 'status-normal' : 'status-arrhythmia');
 
-    function resetAllData(){
-        dataLog=[];
-        dataLogTableBody.innerHTML='';
-        bpmValueEl.textContent='0';
-        statusValueEl.textContent='N/A';
-        statusCardEl.classList.remove('status-normal','status-arrhythmia');
-        ecgChart.data.labels=[];ecgChart.data.datasets[0].data=[];ecgChart.update();
-        bpmChart.data.labels=[];bpmChart.data.datasets[0].data=[];bpmChart.update();
-    }
-
-    function shareFile(filename,data,type){
-        const blob=new Blob([data],{type});
-        const filesArray=[new File([blob],filename,{type})];
-        if(navigator.canShare&&navigator.canShare({files:filesArray})){
-            navigator.share({files:filesArray}).catch(err=>console.error('Share failed:',err));
-        }else{
-            const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download=filename;link.click();URL.revokeObjectURL(link.href);
+        } else if (topic === BPM_TOPIC && !isNaN(value)) {
+            currentBpm = Math.round(value);
+            bpmValueEl.textContent = currentBpm;
+            updateChartData(bpmChart, time, currentBpm);
         }
     }
 
-    function setupEventListeners(){
-        document.getElementById('downloadEcgChart').addEventListener('click',()=>{shareFile('grafik_ekg.png',ecgChart.toBase64Image(),'image/png');});
-        document.getElementById('downloadBpmChart').addEventListener('click',()=>{shareFile('grafik_bpm.png',bpmChart.toBase64Image(),'image/png');});
-        document.getElementById('downloadXlsx').addEventListener('click',()=>{if(dataLog.length===0)return alert('Tidak ada data untuk dibagikan.');const ws=XLSX.utils.json_to_sheet(dataLog);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Data EKG");const wbout=XLSX.write(wb,{bookType:'xlsx',type:'array'});shareFile('ekg_data.xlsx',wbout,'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');});
-        document.getElementById('downloadCsv').addEventListener('click',()=>{if(dataLog.length===0)return alert('Tidak ada data untuk dibagikan.');let csvContent='timestamp,topic,payload\n';dataLog.forEach(l=>{csvContent+=`"${l.timestamp}","${l.topic}","${l.payload}"\n`;});shareFile('ekg_data.csv',csvContent,'text/csv;charset=utf-8;');});
-        document.getElementById('downloadTxt').addEventListener('click',()=>{if(dataLog.length===0)return alert('Tidak ada data untuk dibagikan.');let txtContent='Log Data EKG\n====================\n';dataLog.forEach(l=>{txtContent+=`[${l.timestamp}] | Topic: ${l.topic} | Payload: ${l.payload}\n`;});shareFile('ekg_data.txt',txtContent,'text/plain;charset=utf-8;');});
-        document.getElementById('resetData').addEventListener('click',()=>{document.getElementById('modal-reset').style.display='flex';});
-        document.getElementById('cancelReset').addEventListener('click',()=>{document.getElementById('modal-reset').style.display='none';});
-        document.getElementById('confirmReset').addEventListener('click',()=>{resetAllData();document.getElementById('modal-reset').style.display='none';});
+    function updateChartData(chart, label, data) {
+        chart.data.labels.push(label);
+        chart.data.datasets[0].data.push(data);
+        if (chart.data.labels.length > MAX_CHART_POINTS) {
+            chart.data.labels.shift();
+            chart.data.datasets[0].data.shift();
+        }
+        chart.update('none');
+    }
+
+    function updateLogTable({ time, ecg, bpm, status }) {
+        const newRow = dataLogTableBody.insertRow(0);
+        newRow.insertCell(0).textContent = time;
+        newRow.insertCell(1).textContent = ecg;
+        newRow.insertCell(2).textContent = bpm;
+        newRow.insertCell(3).textContent = status;
+        if (dataLogTableBody.rows.length > MAX_TABLE_ROWS) {
+            dataLogTableBody.deleteRow(MAX_TABLE_ROWS);
+        }
+    }
+
+    function resetAllData() {
+        processedLog = [];
+        dataLogTableBody.innerHTML = '';
+        bpmValueEl.textContent = '0';
+        statusValueEl.textContent = 'N/A';
+        statusCardEl.classList.remove('status-normal', 'status-arrhythmia');
+        [ecgChart, bpmChart].forEach(chart => {
+            chart.data.labels = [];
+            chart.data.datasets[0].data = [];
+            chart.update();
+        });
+        currentBpm = "";
+        currentStatus = "";
+    }
+
+    function getFileName(extension) {
+        return `ekg_log_${new Date().toISOString().replace(/[:.]/g, '-')}.${extension}`;
+    }
+
+    function createBlob(type) {
+        let content, mimeType;
+        const headers = "Waktu,ECG,BPM,Status\n";
+
+        switch (type) {
+            case 'txt':
+                content = "Waktu\tECG\tBPM\tStatus\n";
+                processedLog.forEach(d => { content += `${d.time}\t${d.ecg}\t${d.bpm}\t${d.status}\n`; });
+                mimeType = 'text/plain';
+                break;
+            case 'csv':
+                content = headers;
+                processedLog.forEach(d => { content += `"${d.time}","${d.ecg}","${d.bpm}","${d.status}"\n`; });
+                mimeType = 'text/csv;charset=utf-8;';
+                break;
+            case 'xlsx':
+                const worksheetData = processedLog.map(d => ({ Waktu: d.time, ECG: d.ecg, BPM: d.bpm, Status: d.status }));
+                const ws = XLSX.utils.json_to_sheet(worksheetData);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, 'Data EKG');
+                const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+                return new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        }
+        return new Blob([content], { type: mimeType });
+    }
+
+    function downloadFile(blob, filename) {
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = filename;
+        link.click();
+        URL.revokeObjectURL(link.href);
+    }
+    
+    async function shareFile(blob, filename) {
+        const file = new File([blob], filename, { type: blob.type });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            try {
+                await navigator.share({
+                    files: [file],
+                    title: 'EKG Data Log',
+                    text: `Berikut adalah data log EKG yang diambil pada ${new Date().toLocaleString('id-ID')}.`
+                });
+            } catch (error) {
+                console.error('Sharing failed', error);
+                if (error.name !== 'AbortError') {
+                   alert('Gagal membagikan file.');
+                }
+            }
+        } else {
+            alert('Browser Anda tidak mendukung fitur berbagi file ini. File akan diunduh sebagai gantinya.');
+            downloadFile(blob, filename);
+        }
+    }
+
+    function setupEventListeners() {
+        document.querySelectorAll('.action-btn').forEach(button => {
+            button.addEventListener('click', () => {
+                const type = button.dataset.type;
+                const target = button.dataset.target;
+                const hasData = type.startsWith('chart') ? ecgChart.data.labels.length > 0 : processedLog.length > 0;
+                
+                if (!hasData) {
+                    modalNoData.style.display = 'flex';
+                } else {
+                    pendingAction = { type, target };
+                    modalAction.style.display = 'flex';
+                }
+            });
+        });
+
+        document.getElementById('confirm-download').addEventListener('click', () => {
+            if (!pendingAction) return;
+            const { type, target } = pendingAction;
+            if (type === 'chart') {
+                const chart = target === 'ecgChart' ? ecgChart : bpmChart;
+                downloadFile(chart.toBase64Image(), `${target}.png`);
+            } else {
+                const blob = createBlob(type);
+                downloadFile(blob, getFileName(type));
+            }
+            modalAction.style.display = 'none';
+            pendingAction = null;
+        });
+
+        document.getElementById('confirm-share').addEventListener('click', () => {
+            if (!pendingAction) return;
+            const { type, target } = pendingAction;
+            
+            if (type === 'chart') {
+                const chart = target === 'ecgChart' ? ecgChart : bpmChart;
+                chart.canvas.toBlob(blob => {
+                   if (blob) shareFile(blob, `${target}.png`);
+                });
+            } else {
+                const blob = createBlob(type);
+                shareFile(blob, getFileName(type));
+            }
+
+            modalAction.style.display = 'none';
+            pendingAction = null;
+        });
+
+        document.getElementById('resetData').addEventListener('click', () => {
+            modalReset.style.display = 'flex';
+        });
+
+        document.getElementById('confirmReset').addEventListener('click', () => {
+            resetAllData();
+            modalReset.style.display = 'none';
+        });
+        
+        document.querySelectorAll('.cancel-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                btn.closest('.modal').style.display = 'none';
+            });
+        });
     }
 
     initCharts();
