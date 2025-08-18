@@ -17,37 +17,32 @@
                 <h1><i class="fa-solid fa-wave-square"></i> EKG Dashboard</h1>
                 <p>Status Koneksi: <span id="connection-status">Initializing...</span></p>
             </header>
-
             <div class="metrics-grid">
                 <section class="card">
                     <h3><i class="fa-solid fa-heart-pulse"></i> BPM</h3>
                     <p id="bpm-value" class="data-value">0</p>
                 </section>
-                
                 <section class="card" id="status-card">
                     <h3><i class="fa-solid fa-shield-heart"></i> Status Arythmia</h3>
                     <p id="status-value" class="data-value">N/A</p>
                 </section>
             </div>
-
             <div class="charts-grid">
                 <section class="card">
                     <h2>Grafik EKG</h2>
                     <div class="chart-wrapper">
                         <canvas id="ecgChart"></canvas>
                     </div>
-                    <button id="downloadEcgChart"><i class="fa-solid fa-download"></i> Download PNG</button>
+                    <button id="downloadEcgChart"><i class="fa-solid fa-download"></i> Download/Share</button>
                 </section>
-                
                 <section class="card">
                     <h2>Grafik BPM (Historis)</h2>
                     <div class="chart-wrapper">
                         <canvas id="bpmChart"></canvas>
                     </div>
-                    <button id="downloadBpmChart"><i class="fa-solid fa-download"></i> Download PNG</button>
+                    <button id="downloadBpmChart"><i class="fa-solid fa-download"></i> Download/Share</button>
                 </section>
             </div>
-            
             <div class="data-grid">
                 <section class="card card-full-height">
                     <h2>Data Log Real-time</h2>
@@ -64,13 +59,12 @@
                         </table>
                     </div>
                 </section>
-
                 <section class="card card-full-height">
                     <h2>Aksi & Download</h2>
                     <div class="button-group">
-                        <button id="downloadXlsx"><i class="fa-solid fa-file-excel"></i> Download XLSX</button>
-                        <button id="downloadCsv"><i class="fa-solid fa-file-csv"></i> Download CSV</button>
-                        <button id="downloadTxt"><i class="fa-solid fa-file-alt"></i> Download TXT</button>
+                        <button id="downloadXlsx"><i class="fa-solid fa-file-excel"></i> Download/Share XLSX</button>
+                        <button id="downloadCsv"><i class="fa-solid fa-file-csv"></i> Download/Share CSV</button>
+                        <button id="downloadTxt"><i class="fa-solid fa-file-alt"></i> Download/Share TXT</button>
                         <hr style="border: none; border-top: 1px solid var(--border-color); margin: 12px 0;">
                         <button id="resetData" class="button-danger"><i class="fa-solid fa-trash-can"></i> Reset Data</button>
                     </div>
@@ -78,10 +72,18 @@
             </div>
         </main>
     </div>
-
+    <div id="modal-reset" class="modal">
+        <div class="modal-content">
+            <p>Anda yakin ingin mereset semua data pada dashboard?</p>
+            <div class="modal-buttons">
+                <button id="confirmReset">Ya</button>
+                <button id="cancelReset">Batal</button>
+            </div>
+        </div>
+    </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="./App.js?v=2.1"></script>
+    <script src="./App.js"></script>
 </body>
 </html>
