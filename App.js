@@ -12,15 +12,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const bpmValueEl = document.getElementById('bpm-value');
     const statusValueEl = document.getElementById('status-value');
     const statusCardEl = document.getElementById('status-card');
-    const dataLogTableBody = document.getElementById('data-log-table');
     const modalReset = document.getElementById('modal-reset');
     const modalNoData = document.getElementById('modal-nodata');
     const modalAction = document.getElementById('modal-action');
 
     const MAX_CHART_POINTS = 100;
-    const MAX_TABLE_ROWS = 50;
-
-    let processedLog = [], ecgChart, bpmChart;
+    
+    let processedLog = [], ecgChart;
     let currentBpm = "", currentStatus = "";
     let pendingAction = null;
 
@@ -30,13 +28,6 @@ document.addEventListener('DOMContentLoaded', () => {
             type: 'line',
             data: { labels: [], datasets: [{ label: 'Sinyal EKG', data: [], borderColor: 'rgb(75, 192, 192)', borderWidth: 1.5, pointRadius: 0, tension: 0.1 }] },
             options: { responsive: true, maintainAspectRatio: false, animation: false, scales: { x: { display: false }, y: { min: -2, max: 2, beginAtZero: false, ticks: { stepSize: 0.5 } } } }
-        });
-
-        const bpmCtx = document.getElementById('bpmChart').getContext('2d');
-        bpmChart = new Chart(bpmCtx, {
-            type: 'line',
-            data: { labels: [], datasets: [{ label: 'BPM', data: [], borderColor: 'rgb(255, 99, 132)', backgroundColor: 'rgba(255, 99, 132, 0.2)', borderWidth: 2, fill: true }] },
-            options: { responsive: true, maintainAspectRatio: false, scales: { y: { min: 0, max: 220 } } }
         });
     }
 
@@ -63,7 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (topic === ECG_TOPIC) {
                 try {
-                    const values = JSON.parse(payload); // kalau array
+                    const values = JSON.parse(payload);
                     if (Array.isArray(values)) {
                         values.forEach(val => {
                             const num = parseFloat(val);
@@ -111,18 +102,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 status: currentStatus
             };
             processedLog.push(logEntry);
-            updateLogTable(logEntry);
-
         } else if (topic === STATUS_TOPIC) {
             currentStatus = payload;
             statusValueEl.textContent = payload;
             statusCardEl.classList.remove('status-normal', 'status-arrhythmia');
             statusCardEl.classList.add(payload.toLowerCase().includes('normal') ? 'status-normal' : 'status-arrhythmia');
-
         } else if (topic === BPM_TOPIC && !isNaN(value)) {
             currentBpm = Math.round(value);
             bpmValueEl.textContent = currentBpm;
-            updateChartData(bpmChart, time, currentBpm);
         }
     }
 
@@ -136,28 +123,14 @@ document.addEventListener('DOMContentLoaded', () => {
         chart.update('none');
     }
 
-    function updateLogTable({ time, ecg, bpm, status }) {
-        const newRow = dataLogTableBody.insertRow(0);
-        newRow.insertCell(0).textContent = time;
-        newRow.insertCell(1).textContent = ecg;
-        newRow.insertCell(2).textContent = bpm;
-        newRow.insertCell(3).textContent = status;
-        if (dataLogTableBody.rows.length > MAX_TABLE_ROWS) {
-            dataLogTableBody.deleteRow(MAX_TABLE_ROWS);
-        }
-    }
-
     function resetAllData() {
         processedLog = [];
-        dataLogTableBody.innerHTML = '';
         bpmValueEl.textContent = '0';
         statusValueEl.textContent = 'N/A';
         statusCardEl.classList.remove('status-normal', 'status-arrhythmia');
-        [ecgChart, bpmChart].forEach(chart => {
-            chart.data.labels = [];
-            chart.data.datasets[0].data = [];
-            chart.update();
-        });
+        ecgChart.data.labels = [];
+        ecgChart.data.datasets[0].data = [];
+        ecgChart.update();
         currentBpm = "";
         currentStatus = "";
     }
@@ -241,8 +214,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!pendingAction) return;
             const { type, target } = pendingAction;
             if (type === 'chart') {
-                const chart = target === 'ecgChart' ? ecgChart : bpmChart;
-                downloadFile(chart.toBase64Image(), `${target}.png`);
+                downloadFile(ecgChart.toBase64Image(), `hrv_chart.png`);
             } else {
                 const blob = createBlob(type);
                 downloadFile(blob, getFileName(type));
@@ -256,9 +228,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const { type, target } = pendingAction;
             
             if (type === 'chart') {
-                const chart = target === 'ecgChart' ? ecgChart : bpmChart;
-                chart.canvas.toBlob(blob => {
-                   if (blob) shareFile(blob, `${target}.png`);
+                ecgChart.canvas.toBlob(blob => {
+                   if (blob) shareFile(blob, `hrv_chart.png`);
                 });
             } else {
                 const blob = createBlob(type);

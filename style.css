@@ -34,10 +34,6 @@ header p { color: var(--text-secondary); }
 #status-card.status-arrhythmia { background-color: var(--red-light-bg); border-left: 4px solid var(--red-strong); }
 #status-card.status-arrhythmia .data-value { color: var(--red-strong); }
 .chart-wrapper { position: relative; width: 100%; height: 250px; margin-bottom: 16px; }
-.table-wrapper { flex-grow: 1; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px; max-height: 260px; }
-table { width: 100%; border-collapse: collapse; }
-th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border-color); }
-thead th { background-color: #f8fafc; position: sticky; top: 0; font-size: 0.9em; font-weight: 600; }
 button { background-color: var(--primary-color); color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 500; display: inline-flex; align-items: center; justify-content: center; gap: 8px; transition: background-color 0.2s, transform 0.2s; }
 button:hover { background-color: var(--primary-hover); transform: translateY(-2px); }
 .button-group { display: flex; flex-direction: column; gap: 12px; margin-top: auto; }
@@ -48,5 +44,5 @@ button:hover { background-color: var(--primary-hover); transform: translateY(-2p
 .modal-content p { margin-bottom: 16px; font-size: 1.1rem; }
 .modal-buttons { display: flex; justify-content: center; gap: 10px; margin-top: 16px; }
 .modal button { flex: 1; margin: 0 4px; }
-@media (min-width: 768px) { .dashboard-container { padding: 32px 24px; } .metrics-grid, .charts-grid { grid-template-columns: 1fr 1fr; } .chart-wrapper { height: 300px; } }
-@media (min-width: 1024px) { .data-grid { grid-template-columns: 2fr 1fr; } .button-group { padding-top: 1rem; } }
+@media (min-width: 768px) { .dashboard-container { padding: 32px 24px; } .metrics-grid { grid-template-columns: 1fr 1fr; } .chart-wrapper { height: 300px; } .data-grid { grid-template-columns: 1fr; } }
+@media (min-width: 1024px) { .button-group { padding-top: 1rem; } .data-grid { grid-template-columns: 1fr; justify-content: start; } .card-full-height { grid-column: auto; } }
