@@ -52,30 +52,58 @@
         </main>
     </div>
 
+    <!-- Modal untuk Konfirmasi Reset -->
     <div id="modal-reset" class="modal">
         <div class="modal-content">
+            <div class="modal-icon icon-danger">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <h3>Reset Data</h3>
             <p>Anda yakin ingin mereset semua data di dashboard dan database?</p>
             <div class="modal-buttons">
-                <button id="confirmReset">Ya</button>
-                <button class="cancel-btn">Batal</button>
+                <button class="modal-btn-cancel">Batal</button>
+                <button id="confirmReset" class="modal-btn-confirm">Ya, Reset</button>
             </div>
         </div>
     </div>
 
+    <!-- Modal untuk Info Tidak Ada Data -->
     <div id="modal-nodata" class="modal">
         <div class="modal-content">
-            <p>Tidak ada data untuk diunduh. Silakan tunggu data masuk.</p>
+            <div class="modal-icon icon-info">
+                <i class="fa-solid fa-circle-info"></i>
+            </div>
+            <h3>Tidak Ada Data</h3>
+            <p>Tidak ada data histori yang dapat diunduh saat ini.</p>
             <div class="modal-buttons">
-                <button class="cancel-btn">Tutup</button>
+                <button class="modal-btn-cancel">Tutup</button>
             </div>
         </div>
     </div>
 
+    <!-- Modal BARU untuk Konfirmasi Download -->
+    <div id="modal-download" class="modal">
+        <div class="modal-content">
+            <div class="modal-icon icon-info">
+                <i class="fa-solid fa-circle-question"></i>
+            </div>
+            <h3>Konfirmasi Unduh</h3>
+            <p>Anda akan mengunduh data histori sebagai file XLSX. Lanjutkan?</p>
+            <div class="modal-buttons">
+                <button class="modal-btn-cancel">Batal</button>
+                <button id="confirmDownload" class="modal-btn-confirm">Ya, Unduh</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    
+    <!-- Script Aplikasi Utama -->
     <script src="./App.js"></script>
 </body>
 </html>
