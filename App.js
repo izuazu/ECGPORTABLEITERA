@@ -7,33 +7,51 @@ document.addEventListener('DOMContentLoaded', () => {
     const ECG_TOPIC = 'ekg/data';
     const BPM_TOPIC = 'ekg/bpm';
     const STATUS_TOPIC = 'ekg/status';
+    const HRV_TOPIC = 'ekg/hrv';
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyBnXD2kCG_V7wU3ooDjUNTaGHJIKP6mOY4",
+        authDomain: "portableecgitera.firebaseapp.com",
+        databaseURL: "https://portableecgitera-default-rtdb.firebaseio.com",
+        projectId: "portableecgitera",
+        storageBucket: "portableecgitera.appspot.com",
+        messagingSenderId: "1049018106297",
+        appId: "1:1049018106297:web:4744d70ad3c1cd43bd3668",
+        measurementId: "G-V9J2L7CN9W"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
 
     const connectionStatusEl = document.getElementById('connection-status');
     const bpmValueEl = document.getElementById('bpm-value');
+    const hrvValueEl = document.getElementById('hrv-value');
     const statusValueEl = document.getElementById('status-value');
     const statusCardEl = document.getElementById('status-card');
     const modalReset = document.getElementById('modal-reset');
     const modalNoData = document.getElementById('modal-nodata');
-    const modalAction = document.getElementById('modal-action');
 
     const MAX_CHART_POINTS = 100;
-    
-    let processedLog = [], ecgChart;
-    let currentBpm = "", currentStatus = "";
-    let pendingAction = null;
+    let ecgChart;
+    let currentBpm = "", currentStatus = "", currentHrv = "";
 
     function initCharts() {
         const ecgCtx = document.getElementById('ecgChart').getContext('2d');
         ecgChart = new Chart(ecgCtx, {
             type: 'line',
             data: { labels: [], datasets: [{ label: 'Sinyal EKG', data: [], borderColor: 'rgb(75, 192, 192)', borderWidth: 1.5, pointRadius: 0, tension: 0.1 }] },
-            options: { responsive: true, maintainAspectRatio: false, animation: false, scales: { x: { display: false }, y: { min: -2, max: 2, beginAtZero: false, ticks: { stepSize: 0.5 } } } }
+            options: { responsive: true, maintainAspectRatio: false, animation: false, scales: { x: { display: false }, y: { min: -2, max: 2, ticks: { stepSize: 0.5 } } } }
         });
     }
 
     function updateConnectionStatus(msg, isConnected) {
         connectionStatusEl.textContent = msg;
         connectionStatusEl.style.color = isConnected ? 'var(--green-strong)' : 'var(--red-strong)';
+    }
+
+    function updateFirebaseRealtime(data) {
+        database.ref('ecgdata/realtime').set(data)
+            .catch(error => console.error("Firebase update failed:", error));
     }
 
     function connectMqtt() {
@@ -51,7 +69,6 @@ document.addEventListener('DOMContentLoaded', () => {
         client.onMessageArrived = msg => {
             const topic = msg.destinationName;
             const payload = msg.payloadString;
-
             if (topic === ECG_TOPIC) {
                 try {
                     const values = JSON.parse(payload);
@@ -60,9 +77,6 @@ document.addEventListener('DOMContentLoaded', () => {
                             const num = parseFloat(val);
                             if (!isNaN(num)) updateDashboard(ECG_TOPIC, num);
                         });
-                    } else {
-                        const val = parseFloat(payload);
-                        if (!isNaN(val)) updateDashboard(topic, val);
                     }
                 } catch (e) {
                     const val = parseFloat(payload);
@@ -79,6 +93,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 client.subscribe(ECG_TOPIC);
                 client.subscribe(BPM_TOPIC);
                 client.subscribe(STATUS_TOPIC);
+                client.subscribe(HRV_TOPIC);
             },
             onFailure: m => updateConnectionStatus(`Connection Failed: ${m.errorMessage}`, false),
             userName: MQTT_USERNAME,
@@ -89,27 +104,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateDashboard(topic, payload) {
         const timestamp = new Date();
-        const time = timestamp.toLocaleTimeString('id-ID');
         const value = parseFloat(payload);
 
         if (topic === ECG_TOPIC && !isNaN(value)) {
-            updateChartData(ecgChart, time, value);
+            updateChartData(ecgChart, timestamp.toLocaleTimeString('id-ID'), value);
             const logEntry = {
-                time: time,
                 timestamp: timestamp.toISOString(),
                 ecg: value.toFixed(4),
                 bpm: currentBpm,
+                hrv: currentHrv,
                 status: currentStatus
             };
-            processedLog.push(logEntry);
+            database.ref('ecgdata/history').push(logEntry);
+            database.ref('ecgdata/realtime/ecg').set(value.toFixed(4));
+            
+        } else if (topic === BPM_TOPIC && !isNaN(value)) {
+            currentBpm = Math.round(value);
+            bpmValueEl.textContent = currentBpm;
+            database.ref('ecgdata/realtime/BPM').set(currentBpm);
+
+        } else if (topic === HRV_TOPIC && !isNaN(value)) {
+            currentHrv = Math.round(value);
+            hrvValueEl.textContent = currentHrv;
+            database.ref('ecgdata/realtime/hrv').set(currentHrv);
+
         } else if (topic === STATUS_TOPIC) {
             currentStatus = payload;
             statusValueEl.textContent = payload;
             statusCardEl.classList.remove('status-normal', 'status-arrhythmia');
             statusCardEl.classList.add(payload.toLowerCase().includes('normal') ? 'status-normal' : 'status-arrhythmia');
-        } else if (topic === BPM_TOPIC && !isNaN(value)) {
-            currentBpm = Math.round(value);
-            bpmValueEl.textContent = currentBpm;
+            database.ref('ecgdata/realtime/status').set(currentStatus);
         }
     }
 
@@ -124,121 +148,70 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function resetAllData() {
-        processedLog = [];
+        database.ref('ecgdata').remove()
+            .then(() => console.log("Firebase data reset successfully."))
+            .catch(error => console.error("Firebase reset failed:", error));
+        
         bpmValueEl.textContent = '0';
+        hrvValueEl.textContent = '0';
         statusValueEl.textContent = 'N/A';
         statusCardEl.classList.remove('status-normal', 'status-arrhythmia');
+        
         ecgChart.data.labels = [];
         ecgChart.data.datasets[0].data = [];
         ecgChart.update();
+        
         currentBpm = "";
         currentStatus = "";
+        currentHrv = "";
     }
 
     function getFileName(extension) {
         return `ekg_log_${new Date().toISOString().replace(/[:.]/g, '-')}.${extension}`;
     }
-
-    function createBlob(type) {
-        let content, mimeType;
-        const headers = "Waktu,ECG,BPM,Status\n";
-
-        switch (type) {
-            case 'txt':
-                content = "Waktu\tECG\tBPM\tStatus\n";
-                processedLog.forEach(d => { content += `${d.time}\t${d.ecg}\t${d.bpm}\t${d.status}\n`; });
-                mimeType = 'text/plain';
-                break;
-            case 'csv':
-                content = headers;
-                processedLog.forEach(d => { content += `"${d.time}","${d.ecg}","${d.bpm}","${d.status}"\n`; });
-                mimeType = 'text/csv;charset=utf-8;';
-                break;
-            case 'xlsx':
-                const worksheetData = processedLog.map(d => ({ Waktu: d.time, ECG: d.ecg, BPM: d.bpm, Status: d.status }));
-                const ws = XLSX.utils.json_to_sheet(worksheetData);
-                const wb = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(wb, ws, 'Data EKG');
-                const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-                return new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-        }
-        return new Blob([content], { type: mimeType });
-    }
-
+    
     function downloadFile(blob, filename) {
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
         link.download = filename;
+        document.body.appendChild(link);
         link.click();
+        document.body.removeChild(link);
         URL.revokeObjectURL(link.href);
     }
     
-    async function shareFile(blob, filename) {
-        const file = new File([blob], filename, { type: blob.type });
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-            try {
-                await navigator.share({
-                    files: [file],
-                    title: 'EKG Data Log',
-                    text: `Berikut adalah data log EKG yang diambil pada ${new Date().toLocaleString('id-ID')}.`
-                });
-            } catch (error) {
-                console.error('Sharing failed', error);
-                if (error.name !== 'AbortError') {
-                   alert('Gagal membagikan file.');
-                }
-            }
-        } else {
-            alert('Browser Anda tidak mendukung fitur berbagi file ini. File akan diunduh sebagai gantinya.');
-            downloadFile(blob, filename);
+    async function downloadDataAsXlsx() {
+        const historyRef = database.ref('ecgdata/history');
+        const snapshot = await historyRef.once('value');
+
+        if (!snapshot.exists()) {
+            modalNoData.style.display = 'flex';
+            return;
         }
+
+        const data = snapshot.val();
+        const dataArray = Object.values(data);
+        
+        const worksheetData = dataArray.map(d => ({
+            Waktu: new Date(d.timestamp).toLocaleString('id-ID'),
+            ECG: d.ecg,
+            BPM: d.bpm,
+            HRV: d.hrv,
+            Status: d.status
+        }));
+        
+        const ws = XLSX.utils.json_to_sheet(worksheetData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Data EKG');
+        
+        const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        
+        downloadFile(blob, getFileName('xlsx'));
     }
 
     function setupEventListeners() {
-        document.querySelectorAll('.action-btn').forEach(button => {
-            button.addEventListener('click', () => {
-                const type = button.dataset.type;
-                const target = button.dataset.target;
-                const hasData = type.startsWith('chart') ? ecgChart.data.labels.length > 0 : processedLog.length > 0;
-                
-                if (!hasData) {
-                    modalNoData.style.display = 'flex';
-                } else {
-                    pendingAction = { type, target };
-                    modalAction.style.display = 'flex';
-                }
-            });
-        });
-
-        document.getElementById('confirm-download').addEventListener('click', () => {
-            if (!pendingAction) return;
-            const { type, target } = pendingAction;
-            if (type === 'chart') {
-                downloadFile(ecgChart.toBase64Image(), `hrv_chart.png`);
-            } else {
-                const blob = createBlob(type);
-                downloadFile(blob, getFileName(type));
-            }
-            modalAction.style.display = 'none';
-            pendingAction = null;
-        });
-
-        document.getElementById('confirm-share').addEventListener('click', () => {
-            if (!pendingAction) return;
-            const { type, target } = pendingAction;
-            
-            if (type === 'chart') {
-                ecgChart.canvas.toBlob(blob => {
-                   if (blob) shareFile(blob, `hrv_chart.png`);
-                });
-            } else {
-                const blob = createBlob(type);
-                shareFile(blob, getFileName(type));
-            }
-
-            modalAction.style.display = 'none';
-            pendingAction = null;
-        });
+        document.getElementById('downloadXlsxBtn').addEventListener('click', downloadDataAsXlsx);
 
         document.getElementById('resetData').addEventListener('click', () => {
             modalReset.style.display = 'flex';
