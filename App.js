@@ -39,7 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const ecgCtx = document.getElementById('ecgChart').getContext('2d');
         ecgChart = new Chart(ecgCtx, {
             type: 'line',
-            data: { labels: [], datasets: [{ label: 'Sinyal EKG', data: [], borderColor: 'rgb(75, 192, 192)', borderWidth: 1.5, pointRadius: 0, tension: 0.1 }] },
+            data: { labels: [], datasets: [{ label: 'Sinyal ECG', data: [], borderColor: 'rgb(75, 192, 192)', borderWidth: 1.5, pointRadius: 0, tension: 0.1 }] },
             options: { responsive: true, maintainAspectRatio: false, animation: false, scales: { x: { display: false }, y: { min: -2, max: 2, ticks: { stepSize: 0.5 } } } }
         });
     }
