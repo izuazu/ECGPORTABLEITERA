@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const MQTT_PATH = '/mqtt';
     const MQTT_USERNAME = 'ekgitera';
     const MQTT_PASSWORD = 'Itera123';
-    const ECG_TOPIC = 'ekg/data';
+    const ECG_TOPIC = 'ekg/data_batch';
     const BPM_TOPIC = 'ekg/bpm';
     const STATUS_TOPIC = 'ekg/status';
     const HRV_TOPIC = 'ekg/hrv';
@@ -67,7 +67,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 animation: false,
                 scales: {
                     x: { display: false },
-                    y: { min: -2, max: 2, ticks: { stepSize: 0.5 } }
+                    y: {
+                        beginAtZero: true,
+                        suggestedMin: 0,
+                        suggestedMax: 2500
+                    }
                 }
             }
         });
@@ -77,22 +81,17 @@ document.addEventListener('DOMContentLoaded', () => {
         connectionStatusEl.textContent = msg;
         connectionStatusEl.style.color = isConnected ? 'var(--green-strong)' : 'var(--red-strong)';
     }
-    
+
     function flushBufferToFirebase() {
         if (ecgBuffer.length === 0) return;
-
         const dataToPush = [...ecgBuffer];
         ecgBuffer = [];
-        
         const updates = {};
         dataToPush.forEach(logEntry => {
             const newKey = database.ref('ecgdata/history').push().key;
             updates[`ecgdata/history/${newKey}`] = logEntry;
         });
-        
-        database.ref().update(updates)
-            .catch(error => console.error("Firebase batch update failed:", error));
-            
+        database.ref().update(updates).catch(error => console.error("Firebase batch update failed:", error));
         lastFlushTime = Date.now();
     }
 
@@ -150,7 +149,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const timestamp = new Date();
         updateChartData(ecgChart, timestamp.toLocaleTimeString('id-ID'), value);
         database.ref('ecgdata/realtime/ecg').set(value.toFixed(4));
-        
         const logEntry = {
             timestamp: timestamp.toISOString(),
             ecg: value.toFixed(4),
@@ -159,15 +157,11 @@ document.addEventListener('DOMContentLoaded', () => {
             status: currentState.status
         };
         ecgBuffer.push(logEntry);
-        
-        if (ecgBuffer.length >= BUFFER_SIZE) {
-            flushBufferToFirebase();
-        }
+        if (ecgBuffer.length >= BUFFER_SIZE) flushBufferToFirebase();
     }
-    
+
     function updateDashboard(topic, payload) {
         const value = parseFloat(payload);
-
         if (topic === BPM_TOPIC && !isNaN(value)) {
             currentState.bpm = String(Math.round(value));
             bpmValueEl.textContent = currentState.bpm;
@@ -192,24 +186,24 @@ document.addEventListener('DOMContentLoaded', () => {
             chart.data.labels.shift();
             chart.data.datasets[0].data.shift();
         }
+        const dataset = chart.data.datasets[0].data;
+        const minY = Math.min(...dataset) - 50;
+        const maxY = Math.max(...dataset) + 50;
+        chart.options.scales.y.min = minY < 0 ? 0 : minY;
+        chart.options.scales.y.max = maxY;
         chart.update('none');
     }
 
     function resetAllData() {
         flushBufferToFirebase();
-        database.ref('ecgdata').remove()
-            .then(() => console.log("Firebase data reset successfully."))
-            .catch(error => console.error("Firebase reset failed:", error));
-        
+        database.ref('ecgdata').remove().then(() => console.log("Firebase data reset successfully.")).catch(error => console.error("Firebase reset failed:", error));
         bpmValueEl.textContent = '0';
         hrvValueEl.textContent = '0';
         statusValueEl.textContent = 'N/A';
         statusCardEl.classList.remove('status-normal', 'status-arrhythmia');
-        
         ecgChart.data.labels = [];
         ecgChart.data.datasets[0].data = [];
         ecgChart.update();
-        
         currentState.bpm = "0";
         currentState.status = "N/A";
         currentState.hrv = "0";
@@ -227,12 +221,10 @@ document.addEventListener('DOMContentLoaded', () => {
     async function downloadDataAsXlsx() {
         const historyRef = database.ref('ecgdata/history');
         const snapshot = await historyRef.once('value');
-
         if (!snapshot.exists()) {
             modalNoData.classList.add('show');
             return;
         }
-
         const data = snapshot.val();
         const dataArray = Object.values(data);
         const worksheetData = dataArray.map(d => ({
@@ -242,29 +234,17 @@ document.addEventListener('DOMContentLoaded', () => {
             HRV: d.hrv,
             Status: d.status
         }));
-        
         const ws = XLSX.utils.json_to_sheet(worksheetData);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Data EKG');
-        
         const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
         const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
         const filename = `ekg_log_${new Date().toISOString().replace(/[:.]/g, '-')}.xlsx`;
-
         if (window.AppInventor && window.AppInventor.setWebViewString) {
-            console.log("Kodular environment detected. Sending file via WebViewString.");
             const base64String = await blobToBase64(blob);
-            
-            const payload = JSON.stringify({
-                filename: filename,
-                data: base64String,
-                mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-            });
-            
+            const payload = JSON.stringify({ filename: filename, data: base64String, mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
             window.AppInventor.setWebViewString(payload);
-
         } else {
-            console.log("Running in a standard browser. Triggering download.");
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
             link.download = filename;
@@ -276,29 +256,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function setupEventListeners() {
-        document.getElementById('downloadXlsxBtn').addEventListener('click', () => {
-            modalDownload.classList.add('show');
-        });
-
-        document.getElementById('confirmDownload').addEventListener('click', () => {
-            downloadDataAsXlsx();
-            modalDownload.classList.remove('show');
-        });
-
-        document.getElementById('resetData').addEventListener('click', () => {
-            modalReset.classList.add('show');
-        });
-
-        document.getElementById('confirmReset').addEventListener('click', () => {
-            resetAllData();
-            modalReset.classList.remove('show');
-        });
-        
-        document.querySelectorAll('.modal-btn-cancel').forEach(btn => {
-            btn.addEventListener('click', () => {
-                btn.closest('.modal').classList.remove('show');
-            });
-        });
+        document.getElementById('downloadXlsxBtn').addEventListener('click', () => { modalDownload.classList.add('show'); });
+        document.getElementById('confirmDownload').addEventListener('click', () => { downloadDataAsXlsx(); modalDownload.classList.remove('show'); });
+        document.getElementById('resetData').addEventListener('click', () => { modalReset.classList.add('show'); });
+        document.getElementById('confirmReset').addEventListener('click', () => { resetAllData(); modalReset.classList.remove('show'); });
+        document.querySelectorAll('.modal-btn-cancel').forEach(btn => { btn.addEventListener('click', () => { btn.closest('.modal').classList.remove('show'); }); });
     }
 
     initCharts();
