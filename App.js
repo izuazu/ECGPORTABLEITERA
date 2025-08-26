@@ -67,11 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 animation: false,
                 scales: {
                     x: { display: false },
-                    y: {
-                        beginAtZero: true,
-                        suggestedMin: 0,
-                        suggestedMax: 2500
-                    }
+                    y: {}
                 }
             }
         });
@@ -189,7 +185,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const dataset = chart.data.datasets[0].data;
         const minY = Math.min(...dataset) - 50;
         const maxY = Math.max(...dataset) + 50;
-        chart.options.scales.y.min = minY < 0 ? 0 : minY;
+        chart.options.scales.y.min = minY;
         chart.options.scales.y.max = maxY;
         chart.update('none');
     }
