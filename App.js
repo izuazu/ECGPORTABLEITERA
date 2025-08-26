@@ -33,8 +33,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const statusValueEl = document.getElementById('status-value');
     const statusCardEl = document.getElementById('status-card');
     const modalReset = document.getElementById('modal-reset');
-    const modalNoData = document.getElementById('modal-nodata');
-    const modalDownload = document.getElementById('modal-download');
 
     let ecgChart;
     let ecgBuffer = [];
@@ -191,8 +189,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function resetAllData() {
+        fetch('https://script.google.com/macros/s/AKfycbx9qcA7Cc4D8bJVJRv0w67bLtHAb0D1CE3Wn9vDcF4EV5URY9RyP6C5gFsLJKRotwyknw/exec')
+            .catch(error => console.error("Error executing spreadsheet clear script:", error));
+
         flushBufferToFirebase();
         database.ref('ecgdata').remove().then(() => console.log("Firebase data reset successfully.")).catch(error => console.error("Firebase reset failed:", error));
+        
         bpmValueEl.textContent = '0';
         hrvValueEl.textContent = '0';
         statusValueEl.textContent = 'N/A';
@@ -205,55 +207,7 @@ document.addEventListener('DOMContentLoaded', () => {
         currentState.hrv = "0";
     }
 
-    function blobToBase64(blob) {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result);
-            reader.onerror = reject;
-            reader.readAsDataURL(blob);
-        });
-    }
-
-    async function downloadDataAsXlsx() {
-        const historyRef = database.ref('ecgdata/history');
-        const snapshot = await historyRef.once('value');
-        if (!snapshot.exists()) {
-            modalNoData.classList.add('show');
-            return;
-        }
-        const data = snapshot.val();
-        const dataArray = Object.values(data);
-        const worksheetData = dataArray.map(d => ({
-            Waktu: new Date(d.timestamp).toLocaleString('id-ID'),
-            ECG: d.ecg,
-            BPM: d.bpm,
-            HRV: d.hrv,
-            Status: d.status
-        }));
-        const ws = XLSX.utils.json_to_sheet(worksheetData);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Data EKG');
-        const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-        const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-        const filename = `ekg_log_${new Date().toISOString().replace(/[:.]/g, '-')}.xlsx`;
-        if (window.AppInventor && window.AppInventor.setWebViewString) {
-            const base64String = await blobToBase64(blob);
-            const payload = JSON.stringify({ filename: filename, data: base64String, mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-            window.AppInventor.setWebViewString(payload);
-        } else {
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = filename;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(link.href);
-        }
-    }
-
     function setupEventListeners() {
-        document.getElementById('downloadXlsxBtn').addEventListener('click', () => { modalDownload.classList.add('show'); });
-        document.getElementById('confirmDownload').addEventListener('click', () => { downloadDataAsXlsx(); modalDownload.classList.remove('show'); });
         document.getElementById('resetData').addEventListener('click', () => { modalReset.classList.add('show'); });
         document.getElementById('confirmReset').addEventListener('click', () => { resetAllData(); modalReset.classList.remove('show'); });
         document.querySelectorAll('.modal-btn-cancel').forEach(btn => { btn.addEventListener('click', () => { btn.closest('.modal').classList.remove('show'); }); });
