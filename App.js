@@ -1,4 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // Konfigurasi MQTT
     const MQTT_BROKER = 'e81af177c9af406794c5f43addea8b52.s1.eu.hivemq.cloud';
     const MQTT_PORT = 8884;
     const MQTT_PATH = '/mqtt';
@@ -9,6 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const STATUS_TOPIC = 'ekg/status';
     const HRV_TOPIC = 'ekg/hrv';
 
+    // Konfigurasi Firebase
     const firebaseConfig = {
         apiKey: "AIzaSyBnXD2kCG_V7wU3ooDjUNTaGHJIKP6mOY4",
         authDomain: "portableecgitera.firebaseapp.com",
@@ -20,13 +22,14 @@ document.addEventListener('DOMContentLoaded', () => {
         measurementId: "G-V9J2L7CN9W"
     };
 
-    const MAX_CHART_POINTS = 200;
-    const BUFFER_SIZE = 100;
-    const FLUSH_INTERVAL = 2000;
+    const MAX_CHART_POINTS = 200; // Jumlah data ECG maksimal ditampilkan di chart
+    const BUFFER_SIZE = 100;      // Jumlah data sebelum flush ke Firebase
+    const FLUSH_INTERVAL = 2000;  // Interval flush otomatis ke Firebase (ms)
 
     firebase.initializeApp(firebaseConfig);
     const database = firebase.database();
 
+    // Element UI
     const connectionStatusEl = document.getElementById('connection-status');
     const bpmValueEl = document.getElementById('bpm-value');
     const hrvValueEl = document.getElementById('hrv-value');
@@ -44,6 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
         status: "N/A"
     };
 
+    // Inisialisasi chart ECG
     function initCharts() {
         const ecgCtx = document.getElementById('ecgChart').getContext('2d');
         ecgChart = new Chart(ecgCtx, {
@@ -64,18 +68,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 maintainAspectRatio: false,
                 animation: false,
                 scales: {
-                    x: { display: false },
+                    x: { display: false }, // Sembunyikan sumbu X
                     y: {}
                 }
             }
         });
     }
 
+    // Update status koneksi MQTT di UI
     function updateConnectionStatus(msg, isConnected) {
         connectionStatusEl.textContent = msg;
         connectionStatusEl.style.color = isConnected ? 'var(--green-strong)' : 'var(--red-strong)';
     }
 
+    // Flush buffer ECG ke Firebase
     function flushBufferToFirebase() {
         if (ecgBuffer.length === 0) return;
         const dataToPush = [...ecgBuffer];
@@ -89,6 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
         lastFlushTime = Date.now();
     }
 
+    // Koneksi ke MQTT Broker
     function connectMqtt() {
         const clientId = 'web-dashboard-' + Math.random().toString(16).substr(2, 8);
         updateConnectionStatus('Connecting...', false);
@@ -130,7 +137,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 client.subscribe(BPM_TOPIC);
                 client.subscribe(STATUS_TOPIC);
                 client.subscribe(HRV_TOPIC);
-                setInterval(flushBufferToFirebase, FLUSH_INTERVAL);
+                setInterval(flushBufferToFirebase, FLUSH_INTERVAL); // Auto flush
             },
             onFailure: m => updateConnectionStatus(`Connection Failed: ${m.errorMessage}`, false),
             userName: MQTT_USERNAME,
@@ -139,6 +146,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Menangani data ECG baru
     function handleEcgData(value) {
         const timestamp = new Date();
         updateChartData(ecgChart, timestamp.toLocaleTimeString('id-ID'), value);
@@ -154,6 +162,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (ecgBuffer.length >= BUFFER_SIZE) flushBufferToFirebase();
     }
 
+    // Update UI untuk BPM, HRV, Status
     function updateDashboard(topic, payload) {
         const value = parseFloat(payload);
         if (topic === BPM_TOPIC && !isNaN(value)) {
@@ -173,6 +182,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Update data chart ECG
     function updateChartData(chart, label, data) {
         chart.data.labels.push(label);
         chart.data.datasets[0].data.push(data);
@@ -188,6 +198,7 @@ document.addEventListener('DOMContentLoaded', () => {
         chart.update('none');
     }
 
+    // Reset semua data di UI, chart, dan Firebase
     function resetAllData() {
         fetch('https://script.google.com/macros/s/AKfycbx9qcA7Cc4D8bJVJRv0w67bLtHAb0D1CE3Wn9vDcF4EV5URY9RyP6C5gFsLJKRotwyknw/exec')
             .catch(error => console.error("Error executing spreadsheet clear script:", error));
@@ -207,12 +218,14 @@ document.addEventListener('DOMContentLoaded', () => {
         currentState.hrv = "0";
     }
 
+    // Event listeners untuk tombol reset
     function setupEventListeners() {
         document.getElementById('resetData').addEventListener('click', () => { modalReset.classList.add('show'); });
         document.getElementById('confirmReset').addEventListener('click', () => { resetAllData(); modalReset.classList.remove('show'); });
         document.querySelectorAll('.modal-btn-cancel').forEach(btn => { btn.addEventListener('click', () => { btn.closest('.modal').classList.remove('show'); }); });
     }
 
+    // Inisialisasi
     initCharts();
     setupEventListeners();
     connectMqtt();
