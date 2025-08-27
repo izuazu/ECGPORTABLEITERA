@@ -4,11 +4,11 @@
     --border-color: #e2e8f0;
     --text-primary: #1a202c;
     --text-secondary: #4a5568;
-    --primary-color: #3b82f6;
-    --primary-hover: #2563eb;
+    --primary-color: #546E7A;
+    --primary-hover: #455A64;
     --green-strong: #16a34a;
-    --red-strong: #ef4444;
-    --red-hover: #dc2626;
+    --red-strong: #d32f2f;
+    --red-hover: #b71c1c;
     --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
     --border-radius: 12px;
 }
@@ -31,14 +31,14 @@ body {
     display: flex;
     justify-content: center;
     width: 100%;
-    padding: 8px;
+    padding: 10px;
 }
 
 .dashboard-container {
     width: 100%;
     max-width: 1280px;
     display: grid;
-    gap: 8px;
+    gap: 10px;
 }
 
 header {
@@ -62,14 +62,14 @@ header p {
 .charts-grid,
 .data-grid {
     display: grid;
-    gap: 8px;
+    gap: 10px;
     grid-template-columns: 1fr;
 }
 
 .card {
     background-color: var(--card-bg);
     border-radius: var(--border-radius);
-    padding: 8px;
+    padding: 10px;
     box-shadow: var(--shadow);
     border: 1px solid var(--border-color);
     display: flex;
@@ -81,10 +81,10 @@ header p {
     font-size: 0.9rem;
     font-weight: 500;
     color: var(--text-secondary);
-    margin-bottom: 8px;
+    margin-bottom: 10px;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
 }
 
 .data-value {
@@ -98,23 +98,27 @@ header p {
     position: relative;
     width: 100%;
     height: 200px;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
 }
 
 button {
     background-color: var(--primary-color);
     color: white;
     border: none;
-    padding: 10px 8px;
-    border-radius: 8px;
+    padding: 10px 10px;
+    border-radius: 10px;
     cursor: pointer;
     font-size: 0.9rem;
     font-weight: 500;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 10px;
     transition: background-color 0.2s, transform 0.2s;
+    -webkit-border-radius: 10px;
+    -moz-border-radius: 10px;
+    -ms-border-radius: 10px;
+    -o-border-radius: 10px;
 }
 
 button:hover {
@@ -130,11 +134,11 @@ button:hover {
 }
 
 .button-danger {
-    background-color: var(--red-strong);
+    background-color: var(--primary-color);
 }
 
 .button-danger:hover {
-    background-color: var(--red-hover);
+    background-color: var(--primary-hover);
 }
 
 .modal {
@@ -180,14 +184,18 @@ button:hover {
     margin-bottom: 16px;
 }
 
-.modal-icon.icon-danger { color: var(--red-strong); }
-.modal-icon.icon-info { color: var(--primary-color); }
+.modal-icon.icon-danger {
+    color: var(--red-strong);
+}
+.modal-icon.icon-info {
+    color: var(--primary-color);
+}
 
 .modal-content h3 {
     font-size: 1.25rem;
     font-weight: 600;
     color: var(--text-primary);
-    margin-bottom: 8px;
+    margin-bottom: 10px;
     justify-content: center;
 }
 
@@ -201,7 +209,7 @@ button:hover {
     display: flex;
     justify-content: center;
     gap: 10px;
-    margin-top: 8px;
+    margin-top: 10px;
 }
 
 .modal-buttons button {
@@ -255,11 +263,11 @@ button:hover {
     .page-wrapper {
         padding: 24px;
     }
-    
+
     .metrics-grid {
         grid-template-columns: repeat(3, 1fr);
     }
-    
+
     header h1 {
         font-size: 1.75rem;
     }
@@ -267,7 +275,7 @@ button:hover {
     .card {
         padding: 24px;
     }
-    
+
     .data-value {
         font-size: 2.5rem;
     }
@@ -286,9 +294,19 @@ button:hover {
             "chart chart actions";
     }
 
-    header { grid-area: header; }
-    .metrics-grid { grid-area: metrics; }
-    .charts-grid { grid-area: chart; }
-    .data-grid { grid-area: actions; }
-    .card-full-height { height: 100%; }
+    header {
+        grid-area: header;
+    }
+    .metrics-grid {
+        grid-area: metrics;
+    }
+    .charts-grid {
+        grid-area: chart;
+    }
+    .data-grid {
+        grid-area: actions;
+    }
+    .card-full-height {
+        height: 100%;
+    }
 }
