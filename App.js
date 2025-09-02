@@ -29,6 +29,9 @@ document.addEventListener('DOMContentLoaded', () => {
     firebase.initializeApp(firebaseConfig);
     const database = firebase.database();
 
+    // ===========================================
+    // ==== PENAMBAHAN REFERENSI ELEMEN UI BARU ====
+    // ===========================================
     // Element UI
     const connectionStatusEl = document.getElementById('connection-status');
     const bpmValueEl = document.getElementById('bpm-value');
@@ -36,6 +39,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const statusValueEl = document.getElementById('status-value');
     const statusCardEl = document.getElementById('status-card');
     const modalReset = document.getElementById('modal-reset');
+    // Elemen untuk modal notifikasi baru
+    const modalNotification = document.getElementById('modal-notification');
+    const notificationTitle = document.getElementById('notification-title');
+    const notificationMessage = document.getElementById('notification-message');
+    // ===========================================
+    // ===========================================
 
     let ecgChart;
     let ecgBuffer = [];
@@ -197,14 +206,55 @@ document.addEventListener('DOMContentLoaded', () => {
         chart.options.scales.y.max = maxY;
         chart.update('none');
     }
+    
+    // ===========================================
+    // ===== FUNGSI BARU UNTUK MODAL NOTIFIKASI ====
+    // ===========================================
+    /**
+     * Menampilkan modal notifikasi custom.
+     * @param {string} title - Judul modal.
+     * @param {string} message - Pesan di dalam modal.
+     */
+    function showNotification(title, message) {
+        notificationTitle.textContent = title;
+        notificationMessage.textContent = message;
+        modalNotification.classList.add('show');
+    }
+    // ===========================================
+    // ===========================================
+
 
     // Reset semua data di UI, chart, dan Firebase
-    function resetAllData() {
+    async function resetAllData() {
+        // Tetap menjalankan fetch untuk membersihkan spreadsheet
         fetch('https://script.google.com/macros/s/AKfycbx9qcA7Cc4D8bJVJRv0w67bLtHAb0D1CE3Wn9vDcF4EV5URY9RyP6C5gFsLJKRotwyknw/exec')
             .catch(error => console.error("Error executing spreadsheet clear script:", error));
 
+        // ===========================================
+        // ==== MENGGANTI alert() DENGAN MODAL BARU ====
+        // ===========================================
+        try {
+            const response = await fetch('https://script.google.com/macros/s/AKfycbwYWgv3wuDU9onqGdf52qGuOYjsJs9PK6LWgVkTpLcZ-tSOytutLb7_KjVcGkrJwC1C/dev?mode=reset');
+            const data = await response.json();
+            
+            if (data.status === 'success' && data.message.includes("telah dipindahkan ke sampah")) {
+                showNotification("Sukses", "Data telah di reset."); // Menggunakan modal custom
+            } else {
+                console.warn("Drive folder reset response not as expected:", data);
+                showNotification("Peringatan", "Reset data selesai, namun konfirmasi reset folder gagal."); // Menggunakan modal custom
+            }
+        } catch (error) {
+            console.error("Error executing Drive folder reset script:", error);
+            showNotification("Error", "Gagal mereset folder di Google Drive."); // Menggunakan modal custom
+        }
+        // ===========================================
+        // ===========================================
+
+        // Menjalankan sisa proses reset seperti sebelumnya
         flushBufferToFirebase();
-        database.ref('ecgdata').remove().then(() => console.log("Firebase data reset successfully.")).catch(error => console.error("Firebase reset failed:", error));
+        database.ref('ecgdata').remove()
+            .then(() => console.log("Firebase data reset successfully."))
+            .catch(error => console.error("Firebase reset failed:", error));
         
         bpmValueEl.textContent = '0';
         hrvValueEl.textContent = '0';
@@ -223,6 +273,15 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('resetData').addEventListener('click', () => { modalReset.classList.add('show'); });
         document.getElementById('confirmReset').addEventListener('click', () => { resetAllData(); modalReset.classList.remove('show'); });
         document.querySelectorAll('.modal-btn-cancel').forEach(btn => { btn.addEventListener('click', () => { btn.closest('.modal').classList.remove('show'); }); });
+
+        // ===========================================
+        // ==== EVENT LISTENER UNTUK TOMBOL OK BARU ====
+        // ===========================================
+        document.getElementById('notification-ok-btn').addEventListener('click', () => {
+            modalNotification.classList.remove('show');
+        });
+        // ===========================================
+        // ===========================================
     }
 
     // Inisialisasi
