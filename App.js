@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     // Konfigurasi MQTT
-    const MQTT_BROKER = 'e81af177c9af406794c5f43addea8b52.s1.eu.hivemq.cloud';
+    const MQTT_BROKER = '530cfa53a2b4483e9a513fc45a0bb52a.s1.eu.hivemq.cloud';
     const MQTT_PORT = 8884;
     const MQTT_PATH = '/mqtt';
     const MQTT_USERNAME = 'ekgitera';
